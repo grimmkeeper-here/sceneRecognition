@@ -27,7 +27,7 @@ home work about scene regconition
         | - train.txt //Not necessary
         | - val.txt //Not necessary
 
-# Project File Structur
+# Project File Structure
     | - places365_standard  // data
     | - model   // model
         | - vgg19_best.pth.tar
