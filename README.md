@@ -47,7 +47,7 @@ home work about scene regconition
         Output:
             <<type yes>>
         
-    + Activate Env    // turn off Enviroment to use
+    + Activate Env    // turn on Enviroment to use
         Command:
             $ source activate <name>    //<name> = name of Enviroment
             Ex: $ source activate scenerecognition
