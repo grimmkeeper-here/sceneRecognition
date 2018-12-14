@@ -21,11 +21,14 @@ import pickle
 def hook_feature(module, input, output):
     features_blobs.append(np.squeeze(output.data))
 
-def loadPreModel(model, PATH):   
+def loadPreModel(model, PATH, premodel = False):   
     model_file = PATH
     if os.path.isfile(PATH):
         checkpoint = torch.load(PATH, map_location=lambda storage, loc: storage)
-        state_dict = checkpoint['state_dict']
+        if premodel:
+            state_dict = {str.replace(k,'module.',''): v for k,v in checkpoint['state_dict'].items()}
+        else:
+            state_dict = checkpoint['state_dict']
     # load params
     model.load_state_dict(state_dict)
     model.eval()
@@ -35,27 +38,23 @@ def predictTest(input_img, model):
     logit = model.forward(input_img)
 #   DEFINE
 PATH = "./places365_standard"
-batch_size = 256 #256
+batch_size = 1 #256
 workers = 6 #6
 features_blobs = []
 num_classes = 365
 
 # load Alexnet
 modelAlexnet = models.alexnet(num_classes = num_classes)
-modelAlexnet = loadPreModel(modelAlexnet,'./model/alexnet_best.pth.tar')
-modelAlexnet._modules.get('features').register_forward_hook(hook_feature)
-# load Resnet152
-modelResnet = models.resnet152(num_classes = num_classes)
-modelResnet = loadPreModel(modelResnet,'./model/resnet152_best.pth.tar')
-modelResnet._modules.get('avgpool').register_forward_hook(hook_feature)
-# load Googlenet
-modelGooglenet = models.inception_v3(num_classes = num_classes)
-modelGooglenet = loadPreModel(modelGooglenet,'./model/googlenet_best.pth.tar')
-modelGooglenet._modules.get('Mixed_7c').register_forward_hook(hook_feature)
-# load VGG19
-modelVGG = models.vgg19(num_classes = num_classes)
-modelVGG = loadPreModel(modelVGG,'./model/vgg19_best.pth.tar')
-modelVGG._modules.get('features').register_forward_hook(hook_feature)
+modelAlexnet = loadPreModel(modelAlexnet,'./model/alexnet_best.pth.tar',premodel = True)
+modelAlexnet._modules.get('classifier')[4].register_forward_hook(hook_feature)
+# load Resnet50
+modelResnet = models.resnet50(num_classes = num_classes)
+modelResnet = loadPreModel(modelResnet,'./model/resnet50_best.pth.tar',premodel = True)
+modelResnet._modules.get('layer4').register_forward_hook(hook_feature)
+# load VGG16
+modelVGG = models.vgg16(num_classes = num_classes)
+modelVGG = loadPreModel(modelVGG,'./model/vgg16_best.pth.tar')
+modelVGG._modules.get('classifier')[3].register_forward_hook(hook_feature)
 
 # FUNCTION
 def loadData():
@@ -92,7 +91,6 @@ def useModel(img):
     logit = predictTest(img, modelVGG)
     logit = predictTest(img, modelAlexnet)
     logit = predictTest(img, modelResnet)
-    logit = predictTest(img, modelGooglenet)
     for features in features_blobs:
         features = features.view(-1,1)
         features = features.cpu().numpy()

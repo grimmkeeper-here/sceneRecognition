@@ -16,7 +16,7 @@ import os
 
 
 #   DEFINE
-arch = "vgg19"
+arch = "vgg16"
 PATH = "./places365_standard"
 batch_size = 256 #256
 workers = 6 #6
@@ -26,7 +26,7 @@ weight_decay = 1e-4
 start_epoch = 0
 epochs = 90 #90
 resumePATH = ""
-# resumePATH = "./model/vgg19_latest.pth.tar"
+# resumePATH = "./model/vgg16_latest.pth.tar"
 best_prec1 = 0
 print_freq = 10
 num_classes = 365 #365
@@ -51,8 +51,8 @@ class AverageMeter(object):
 
 #   FUNCTION
 def loadModel():
-    # VGG19
-    model = models.vgg19_bn(num_classes = num_classes)
+    # VGG16
+    model = models.vgg16(num_classes = num_classes)
 
     # # GPU
     # model = torch.nn.DataParallel(model).cuda()

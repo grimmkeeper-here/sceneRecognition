@@ -16,7 +16,7 @@ import os
 
 
 #   DEFINE
-arch = "resnet152"
+arch = "resnet50"
 PATH = "./places365_standard"
 batch_size = 256 #256
 workers = 6 #6
@@ -26,7 +26,7 @@ weight_decay = 1e-4
 start_epoch = 0
 epochs = 90 #90
 resumePATH = ""
-# resumePATH = "./model/resnet152_latest.pth.tar"
+# resumePATH = "./model/resnet50_latest.pth.tar"
 best_prec1 = 0
 print_freq = 10
 num_classes = 365 #365
@@ -51,8 +51,8 @@ class AverageMeter(object):
 
 #   FUNCTION
 def loadModel():
-    # Resnet152
-    model = models.resnet152(num_classes = num_classes)
+    # Resnet50
+    model = models.resnet50(num_classes = num_classes)
 
     # # GPU
     # model = torch.nn.DataParallel(model).cuda()
