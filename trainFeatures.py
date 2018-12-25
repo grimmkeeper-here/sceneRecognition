@@ -14,22 +14,8 @@ import torchvision.models as models
 
 import os
 
-
-#   DEFINE
-arch = "vgg16"
-PATH = "./places365_standard"
-batch_size = 256 #256
-workers = 6 #6
-_lr = 0.1
-momentum = 0.9
-weight_decay = 1e-4
-start_epoch = 0
-epochs = 90 #90
-resumePATH = ""
-# resumePATH = "./model/vgg16_latest.pth.tar"
-best_prec1 = 0
-print_freq = 10
-num_classes = 365 #365
+import modelVGG
+import pickle
 
 #   CLASS
 class AverageMeter(object):
@@ -49,42 +35,34 @@ class AverageMeter(object):
         self.count += n
         self.avg = self.sum / self.count
 
+#   DEFINE
+arch = "vgg16"
+PATH = "./places365_standard"
+num_classes = 10 #365
+start_epoch = 0
+epochs = 40 #90
+resumePATH = ""
+# resumePATH = "./model/vgg16_latest.pth.tar"
+_lr = 0.1
+momentum = 0.9
+weight_decay = 1e-4
+best_prec1 = 0
+print_freq = 10
+
 #   FUNCTION
 def loadModel():
     # VGG16
-    model = models.vgg16(num_classes = num_classes)
-
+    model = modelVGG.vgg16(num_classes = num_classes)
     # # GPU
     # model = torch.nn.DataParallel(model).cuda()
 
     return model
 
 def loadData():
-    traindir = os.path.join(PATH, 'train')
-    valdir = os.path.join(PATH, 'val')
-    
-    normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                     std=[0.229, 0.224, 0.225])
-
-    train_loader = torch.utils.data.DataLoader(
-        datasets.ImageFolder(traindir, transforms.Compose([
-            transforms.RandomResizedCrop(224),
-            transforms.RandomHorizontalFlip(),
-            transforms.ToTensor(),
-            normalize,
-        ])),
-        batch_size=batch_size, shuffle=True,
-        num_workers=workers, pin_memory=True)
-
-    val_loader = torch.utils.data.DataLoader(
-        datasets.ImageFolder(valdir, transforms.Compose([
-            transforms.Resize((256,256)),
-            transforms.CenterCrop(224),
-            transforms.ToTensor(),
-            normalize,
-        ])),
-        batch_size=batch_size, shuffle=False,
-        num_workers=workers, pin_memory=True)
+    file = open('./data/features/combineFeatures/train.p','rb')
+    train_loader = pickle.load(file)
+    file = open('./data/features/combineFeatures/val.p','rb')
+    val_loader = pickle.load(file)
     return train_loader,val_loader
 
 def resume(model,resumePATH):
@@ -106,6 +84,27 @@ def save_checkpoint(state, is_best, filename='checkpoint.pth.tar'):
     if is_best:
         shutil.copyfile('./model/'+filename + '_latest.pth.tar', './model/'+filename + '_best.pth.tar')
 
+def adjust_learning_rate(optimizer, epoch):
+    """Sets the learning rate to the initial LR decayed by 10 every 30 epochs"""
+    lr = _lr * (0.1 ** (epoch // 30))
+    for param_group in optimizer.param_groups:
+        param_group['lr'] = lr
+
+def accuracy(output, target, topk=(1,)):
+    """Computes the precision@k for the specified values of k"""
+    maxk = max(topk)
+    batch_size = target.size(0)
+
+    _, pred = output.topk(maxk, 1, True, True)
+    pred = pred.t()
+    correct = pred.eq(target.view(1, -1).expand_as(pred))
+
+    res = []
+    for k in topk:
+        correct_k = correct[:k].view(-1).float().sum(0)
+        res.append(correct_k.mul_(100.0 / batch_size))
+    return res
+
 def train(train_loader, model, criterion, optimizer, epoch):
     batch_time = AverageMeter()
     data_time = AverageMeter()
@@ -117,7 +116,10 @@ def train(train_loader, model, criterion, optimizer, epoch):
     model.train()
 
     end = time.time()
-    for i, (input, target) in enumerate(train_loader):
+    for i, (key) in enumerate(train_loader):
+        target = key['target']
+        input = key['input'].view(1,107,32,32)
+
         # measure data loading time
         data_time.update(time.time() - end)
 
@@ -160,7 +162,6 @@ def train(train_loader, model, criterion, optimizer, epoch):
                    epoch, i, len(train_loader), batch_time=batch_time,
                    data_time=data_time, loss=losses, top1=top1, top5=top5))
 
-
 def validate(val_loader, model, criterion):
     batch_time = AverageMeter()
     losses = AverageMeter()
@@ -171,8 +172,9 @@ def validate(val_loader, model, criterion):
     model.eval()
 
     end = time.time()
-    for i, (input, target) in enumerate(val_loader):
-
+    for i, (key) in enumerate(val_loader):
+        target = key['target']
+        input = key['input'].view(1,107,32,32)
         # # GPU
         # target = target.cuda(non_blocking=True)
         # with torch.no_grad():  
@@ -210,31 +212,10 @@ def validate(val_loader, model, criterion):
 
     return top1.avg
 
-def adjust_learning_rate(optimizer, epoch):
-    """Sets the learning rate to the initial LR decayed by 10 every 30 epochs"""
-    lr = _lr * (0.1 ** (epoch // 30))
-    for param_group in optimizer.param_groups:
-        param_group['lr'] = lr
-
-
-def accuracy(output, target, topk=(1,)):
-    """Computes the precision@k for the specified values of k"""
-    maxk = max(topk)
-    batch_size = target.size(0)
-
-    _, pred = output.topk(maxk, 1, True, True)
-    pred = pred.t()
-    correct = pred.eq(target.view(1, -1).expand_as(pred))
-
-    res = []
-    for k in topk:
-        correct_k = correct[:k].view(-1).float().sum(0)
-        res.append(correct_k.mul_(100.0 / batch_size))
-    return res
-
 def trainVal(model):
     global best_prec1
     # define loss function (criterion) and pptimizer
+
     # # GPU
     # criterion = nn.CrossEntropyLoss().cuda()
     # CPU
@@ -261,6 +242,8 @@ def trainVal(model):
             'state_dict': model.state_dict(),
             'best_prec1': best_prec1,
         }, is_best, arch.lower())
+
+
 
 #   MAIN
 if __name__ == "__main__":
