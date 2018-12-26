@@ -18,18 +18,18 @@ import os
 #   DEFINE
 arch = "resnet50"
 PATH = "./places365_standard"
-batch_size = 256 #256
+batch_size = 1 #256
 workers = 6 #6
 _lr = 0.1
 momentum = 0.9
 weight_decay = 1e-4
 start_epoch = 0
-epochs = 90 #90
+epochs = 4 #90
 resumePATH = ""
 # resumePATH = "./model/resnet50_latest.pth.tar"
 best_prec1 = 0
 print_freq = 10
-num_classes = 365 #365
+num_classes = 10 #365
 
 #   CLASS
 class AverageMeter(object):

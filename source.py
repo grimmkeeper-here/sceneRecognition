@@ -30,8 +30,9 @@ def loadPreModel(model, PATH, premodel = False):
     return model
 
 #   DEFINE
-PATH="./data/model/vgg16_latest.pth.tar"
-num_classes = 5
+PATH="./data/model/vgg16_best.pth.tar"
+# PATH="./data/model/resnet50_best.pth.tar"
+num_classes = 10
 normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                 std=[0.229, 0.224, 0.225])
 centre_crop = transforms.Compose([
@@ -42,12 +43,12 @@ centre_crop = transforms.Compose([
                 normalize])
 features_blobs = []
 # load Alexnet
-modelAlexnet = models.alexnet(num_classes = 365)
+modelAlexnet = models.alexnet(num_classes = num_classes)
 modelAlexnet = loadPreModel(modelAlexnet,'./model/alexnet_best.pth.tar',premodel = True)
 modelAlexnet._modules.get('features').register_forward_hook(hook_feature)
 modelAlexnet.eval()
 # load Resnet50
-modelResnet = models.resnet50(num_classes = 365)
+modelResnet = models.resnet50(num_classes = num_classes)
 modelResnet = loadPreModel(modelResnet,'./model/resnet50_best.pth.tar',premodel = True)
 modelResnet._modules.get('layer4').register_forward_hook(hook_feature)
 modelResnet.eval()
@@ -55,6 +56,7 @@ modelResnet.eval()
 
 #   FUNCTION
 def loadModel():
+
     model = modelVGG.vgg16(num_classes = num_classes)
     if os.path.isfile(PATH):
         checkpoint = torch.load(PATH, map_location=lambda storage, loc: storage)
@@ -62,6 +64,13 @@ def loadModel():
     model.eval()
     model._modules.get('features').register_forward_hook(hook_feature)
     
+    # model = models.resnet50(num_classes = num_classes)
+    # if os.path.isfile(PATH):
+    #     checkpoint = torch.load(PATH, map_location=lambda storage, loc: storage)
+    #     model.load_state_dict(checkpoint['state_dict'])
+    # model.eval()
+    # model._modules.get('layer4').register_forward_hook(hook_feature)
+
     return model
 
 def loadLable():
@@ -105,9 +114,6 @@ def returnCAM(feature_conv, weight_softmax, class_idx):
     # generate the class activation maps upsample to 256x256
     size_upsample = (256, 256)
     nc, h, w = feature_conv.shape
-    print(nc)
-    print(h)
-    print(w)
     output_cam = []
     temp =feature_conv.view((nc, h*w)).detach().numpy()
     for idx in class_idx:
@@ -124,7 +130,8 @@ if __name__ == "__main__":
     model = loadModel()
     lables = loadLable()
     img = transformsImage()
-    input_img = translateInput(img)
+    input_img = img
+    input_img = translateInput(input_img)
 
     # get the softmax weight
     params = list(model.parameters())
@@ -137,8 +144,6 @@ if __name__ == "__main__":
     probs, idx = h_x.sort(0, True)
     probs = probs.numpy()
     idx = idx.numpy()
-    print(idx[0])
-    print(type(weight_softmax[idx[0]]))
 
     for i in range(0, 5):
         print('{:.3f} -> {}'.format(probs[i], lables[idx[i]]))
@@ -146,6 +151,8 @@ if __name__ == "__main__":
     # generate class activation mapping
     print('Class activation map is saved as cam.jpg')
     CAMs = returnCAM(features_blobs[0].view(512,1,1), weight_softmax, [idx[0]])
+    # CAMs = returnCAM(features_blobs[0].view(2048,7,7), weight_softmax, [idx[0]])
+
 
     # render the CAM and output
     img = cv2.imread('1.jpg')

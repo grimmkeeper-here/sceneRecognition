@@ -54,7 +54,7 @@ features_blobs = []
 num_classes = 10 #365
 big_features = []
 big_target = []
-print_freq = 100
+print_freq = 50
 
 # FUNCTION
 def loadData():
@@ -97,6 +97,8 @@ def saveLoader(data,name):
                 'target':target
             }
         loader.append(temp)
+        if i % print_freq == 0:
+            print('{0}/{1}'.format(i,len(loader)))
     # Save file
     file = open('./data/'+name+'.p', 'wb')
     saveFile(loader,file)
